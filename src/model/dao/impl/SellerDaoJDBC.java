@@ -1,5 +1,6 @@
 package model.dao.impl;
 
+import db.DB;
 import entities.Department;
 import entities.Seller;
 import model.dao.SellerDao;
@@ -7,14 +8,14 @@ import model.dao.SellerDao;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
-import db.DB;
 
 
 public class SellerDaoJDBC implements SellerDao {
 
-    private Connection conn;
+    private final Connection conn;
 
     public SellerDaoJDBC(Connection conn) {
 
@@ -42,27 +43,21 @@ public class SellerDaoJDBC implements SellerDao {
         PreparedStatement st = null;
         ResultSet rs = null;
         try {
-            st = conn.prepareStatement("SELECT seller.*, department.Name AS DepName \n" +
-                    "FROM seller\n" +
-                    "JOIN department ON department.Id = seller.DepartmentId\n" +
-                    "where seller.Id = ?  ");
+            st = conn.prepareStatement("""
+                    SELECT seller.*, department.Name AS DepName\s
+                    FROM seller
+                    JOIN department ON department.Id = seller.DepartmentId
+                    where seller.Id = ? \s""");
 
             st.setInt(1, id);
 
             rs = st.executeQuery();
 
             if (rs.next()) {
-                int idSeller = rs.getInt("Id");
-                String name = rs.getString("Name");
-                String email = rs.getString("Email");
-                Date birthDate = rs.getDate("BirthDate");
-                double baseSalary = rs.getDouble("BaseSalary");
-                int departmentId = rs.getInt("DepartmentId");
-                String departmentName = rs.getString("DepName");
 
-                Department department = new Department(departmentId, departmentName);
+                Department department = instantiateDepartment(rs);
 
-                return new Seller(idSeller, name, email, birthDate, baseSalary, department);
+                return instantiateSeller(rs, department);
             }
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
@@ -72,6 +67,30 @@ public class SellerDaoJDBC implements SellerDao {
             DB.closeResultSet(rs);
         }
         return null;
+    }
+
+    private Seller instantiateSeller(ResultSet rs, Department department) throws SQLException {
+
+        int idSeller = rs.getInt("Id");
+
+        String name = rs.getString("Name");
+
+        String email = rs.getString("Email");
+
+        Date birthDate = rs.getDate("BirthDate");
+
+        double baseSalary = rs.getDouble("BaseSalary");
+
+        return new Seller(idSeller, name, email, birthDate, baseSalary, department);
+    }
+
+    private Department instantiateDepartment(ResultSet rs) throws SQLException {
+
+        int departmentId = rs.getInt("DepartmentId");
+
+        String departmentName = rs.getString("DepName");
+
+        return new Department(departmentId, departmentName);
     }
 
     @Override
